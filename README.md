@@ -27,14 +27,14 @@ The server requires few configuration variables to run:
 
 | Variable         | Description                                                          | Default     |
 |------------------|----------------------------------------------------------------------|-------------|
-| `HOSTNAME`       | Your hostname of your Foundry instance                               | *required*  |
-| `TOKEN`          | A user token that you can generate in your profile page              | *required** |
-| `CLIENT_ID`      | A service user that is created in developer console                  | *required** |
-| `CLIENT_SECRET`  | A secret associated with the service user                            | *required** |
+| `FOUNDRY_HOSTNAME`       | Your hostname of your Foundry instance                               | *required*  |
+| `TOKEN`          | A user token that you can generate in your profile page              | Optional; required if OAuth credentials are not set |
+| `CLIENT_ID`      | A service user that is created in developer console                  | Required if `TOKEN` is not set |
+| `CLIENT_SECRET`  | A secret associated with the service user                            | Required if `TOKEN` is not set |
 | `SCOPES`         | Oauth scopes                                                         | None        |
 | `ONTOLOGY_ID`    | Your ontology id                                                     | *required*  |
 
-* if token is not provided the server will try to authenticate using the oauth2 flow with client_id and client_secret
+* Set `TOKEN` to authenticate with a user token, or set both `CLIENT_ID` and `CLIENT_SECRET` to use OAuth2 authentication. `SCOPES` is optional.
 
 ## Usage
 
