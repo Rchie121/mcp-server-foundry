@@ -8,7 +8,7 @@ from pydantic import Field
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Iterator
 from mcp.server.fastmcp import FastMCP, Context
-from typing import Iterator
+from typing import Any, Iterator
 
 
 @dataclass
@@ -67,7 +67,7 @@ def list_ontology_types(ctx: Context) -> Iterator[str]:
 @mcp.tool()
 def query_ontology_type(
     ctx: Context,
-    where: dict[any, any] = Field(description="Filter conditions"),
+    where: dict[str, Any] = Field(description="Filter conditions"),
     object_type: str = Field(description="Name of a ontology type (e.g. User, Article, etc.)")
 ) -> dict:
     """ Query for objects in a given ontology type.
