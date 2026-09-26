@@ -27,14 +27,14 @@ The server requires few configuration variables to run:
 
 | Variable         | Description                                                          | Default     |
 |------------------|----------------------------------------------------------------------|-------------|
-| `HOSTNAME`       | Your hostname of your Foundry instance                               | *required*  |
-| `TOKEN`          | A user token that you can generate in your profile page              | *required** |
-| `CLIENT_ID`      | A service user that is created in developer console                  | *required** |
-| `CLIENT_SECRET`  | A secret associated with the service user                            | *required** |
+| `FOUNDRY_HOSTNAME` | Hostname of your Foundry instance                                    | *required*  |
+| `TOKEN`            | A user token that you can generate in your profile page              | Token authentication |
+| `CLIENT_ID`        | A service user that is created in developer console                  | Client authentication |
+| `CLIENT_SECRET`    | A secret associated with the service user                            | Client authentication |
 | `SCOPES`         | Oauth scopes                                                         | None        |
 | `ONTOLOGY_ID`    | Your ontology id                                                     | *required*  |
 
-* if token is not provided the server will try to authenticate using the oauth2 flow with client_id and client_secret
+* Set `TOKEN`, or set both `CLIENT_ID` and `CLIENT_SECRET` for OAuth client authentication. When `TOKEN` is set, it takes precedence.
 
 ## Usage
 
@@ -54,7 +54,7 @@ first you need to clone the repository and add the config to your app
         "mcp-server-foundry"
       ],
       "env": {
-        "HOSTNAME": "<hostname>",
+        "FOUNDRY_HOSTNAME": "<hostname>",
         "TOKEN": "<token>",
         "CLIENT_ID": "<client_id>",
         "CLIENT_SECRET": "<client_secret>",
