@@ -54,7 +54,7 @@ first you need to clone the repository and add the config to your app
         "mcp-server-foundry"
       ],
       "env": {
-        "HOSTNAME": "<hostname>",
+        "FOUNDRY_HOSTNAME": "<hostname>",
         "TOKEN": "<token>",
         "CLIENT_ID": "<client_id>",
         "CLIENT_SECRET": "<client_secret>",
