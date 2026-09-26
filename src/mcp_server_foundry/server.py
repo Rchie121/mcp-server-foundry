@@ -29,6 +29,19 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
 
     token = os.environ.get("TOKEN")
+    required_settings = ["FOUNDRY_HOSTNAME", "ONTOLOGY_ID"]
+    if not token:
+        required_settings.extend(["CLIENT_ID", "CLIENT_SECRET"])
+
+    missing_settings = [
+        name for name in required_settings if not os.environ.get(name)
+    ]
+    if missing_settings:
+        missing = ", ".join(missing_settings)
+        raise ValueError(
+            f"Missing required Foundry configuration value(s): {missing}. "
+            "Set each listed environment variable before starting the server."
+        )
 
     if token:
         auth = UserTokenAuth(token=token)
@@ -39,7 +52,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             scopes=os.environ.get("SCOPES")
         )
 
-    foundry_client = FoundryClient(auth=auth, hostname=os.environ["HOSTNAME"])
+    foundry_client = FoundryClient(
+        auth=auth, hostname=os.environ["FOUNDRY_HOSTNAME"]
+    )
 
     yield AppContext(
         foundry_client=foundry_client,
