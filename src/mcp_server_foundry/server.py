@@ -3,11 +3,13 @@ import os
 from time import sleep
 from foundry.v2 import FoundryClient
 from foundry import UserTokenAuth, ConfidentialClientAuth
+from foundry._errors import NotFoundError
 from dataclasses import dataclass
 from pydantic import Field
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Iterator
 from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp.exceptions import ToolError
 from typing import Iterator
 
 
@@ -77,11 +79,20 @@ def query_ontology_type(
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id: str = ctx.request_context.lifespan_context.ontology_id
 
-    all_properties = [prop for prop in foundry_client.ontologies.OntologyObject.list(
-        ontology_id,
-        object_type,
-        page_size=1
-    ).data[0] if not prop.startswith('__') ]
+    try:
+        object_type_schema = foundry_client.ontologies.Ontology.ObjectType.get(
+            ontology_id,
+            object_type,
+        )
+    except NotFoundError as error:
+        raise ToolError(
+            f"Object type '{object_type}' does not exist or is not accessible. "
+            "Use list_ontology_types to see available types."
+        ) from error
+
+    all_properties = [
+        prop for prop in object_type_schema.properties if not prop.startswith("__")
+    ]
 
     response = foundry_client.ontologies.OntologyObject.search(
         ontology_id,
