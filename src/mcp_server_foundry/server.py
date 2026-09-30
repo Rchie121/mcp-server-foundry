@@ -30,22 +30,63 @@ class ObjectType:
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
 
-    token = os.environ.get("TOKEN")
+    hostname = os.environ.get("FOUNDRY_HOSTNAME", "")
+    ontology_id = os.environ.get("ONTOLOGY_ID", "")
+    token = os.environ.get("TOKEN", "")
+    client_id = os.environ.get("CLIENT_ID", "")
+    client_secret = os.environ.get("CLIENT_SECRET", "")
 
-    if token:
+    missing_required = [
+        name
+        for name, value in (
+            ("FOUNDRY_HOSTNAME", hostname),
+            ("ONTOLOGY_ID", ontology_id),
+        )
+        if not value.strip()
+    ]
+    has_token = bool(token.strip())
+    has_client_credentials = bool(client_id.strip() and client_secret.strip())
+
+    errors = []
+    if missing_required:
+        errors.append(
+            "Missing required Foundry configuration value(s): "
+            + ", ".join(missing_required)
+            + "."
+        )
+    if not has_token and not has_client_credentials:
+        missing_auth_values = [
+            name
+            for name, value in (
+                ("TOKEN", token),
+                ("CLIENT_ID", client_id),
+                ("CLIENT_SECRET", client_secret),
+            )
+            if not value.strip()
+        ]
+        errors.append(
+            "Foundry authentication is not configured. Set TOKEN, or set both "
+            "CLIENT_ID and CLIENT_SECRET. Missing values: "
+            + ", ".join(missing_auth_values)
+            + "."
+        )
+    if errors:
+        raise ValueError(" ".join(errors))
+
+    if has_token:
         auth = UserTokenAuth(token=token)
     else:
         auth = ConfidentialClientAuth(
-            client_id=os.environ["CLIENT_ID"],
-            client_secret=os.environ["CLIENT_SECRET"],
+            client_id=client_id,
+            client_secret=client_secret,
             scopes=os.environ.get("SCOPES")
         )
 
-    foundry_client = FoundryClient(auth=auth, hostname=os.environ["HOSTNAME"])
+    foundry_client = FoundryClient(auth=auth, hostname=hostname)
 
     yield AppContext(
         foundry_client=foundry_client,
-        ontology_id=os.environ["ONTOLOGY_ID"]
+        ontology_id=ontology_id
     )
 
 mcp = FastMCP("My App", lifespan=app_lifespan, dependencies=["foundry-platform-sdk"])
