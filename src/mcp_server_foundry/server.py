@@ -7,23 +7,15 @@ from foundry._errors import NotFoundError
 from dataclasses import dataclass
 from pydantic import Field
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.fastmcp.exceptions import ToolError
-from typing import Iterator
 
 
 @dataclass
 class AppContext:
     foundry_client: FoundryClient
     ontology_id: str
-
-@dataclass
-class ObjectType:
-    name: str
-    description: str
-    properties: list[str]
-    primary_key: str
 
 
 @asynccontextmanager
@@ -48,22 +40,25 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         ontology_id=os.environ["ONTOLOGY_ID"]
     )
 
+
 mcp = FastMCP("My App", lifespan=app_lifespan, dependencies=["foundry-platform-sdk"])
 
+
 @mcp.tool()
-def list_ontology_types(ctx: Context) -> Iterator[str]:
-    """ List all the ontology types """
+def list_ontology_types(ctx: Context) -> list[dict[str, object]]:
+    """List all ontology types, including their properties and primary key."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id = ctx.request_context.lifespan_context.ontology_id
 
     return [
-        ObjectType(
-            name=object_type.api_name,
-            description=object_type.description,
-            properties=list(object_type.properties.keys()),
-            primary_key=object_type.primary_key
-        )
-    for object_type in foundry_client.ontologies.Ontology.ObjectType.list(ontology_id)]
+        {
+            "name": object_type.api_name,
+            "description": object_type.description,
+            "properties": list(object_type.properties.keys()),
+            "primary_key": object_type.primary_key,
+        }
+        for object_type in foundry_client.ontologies.Ontology.ObjectType.list(ontology_id)
+    ]
 
 
 @mcp.tool()
@@ -72,8 +67,8 @@ def query_ontology_type(
     where: dict[any, any] = Field(description="Filter conditions"),
     object_type: str = Field(description="Name of a ontology type (e.g. User, Article, etc.)")
 ) -> dict:
-    """ Query for objects in a given ontology type.
-        Use list_ontology_types to get the list of available types
+    """Query for objects in a given ontology type.
+    Use list_ontology_types to get the list of available types.
     """
 
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
@@ -107,7 +102,7 @@ def query_ontology_type(
 
 @mcp.tool()
 def query_dataset(ctx: Context, query: str) -> dict:
-    """ Query a dataset using Spark SQL dialect e.g. "SELECT COUNT(*) FROM `dataset_rid`" """
+    """Query a dataset using Spark SQL dialect e.g. "SELECT COUNT(*) FROM `dataset_rid`" """
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     query_id = foundry_client.sql_queries.Query.execute(
         query=query,
@@ -129,19 +124,20 @@ def query_dataset(ctx: Context, query: str) -> dict:
 
 
 @mcp.tool()
-def list_functions(ctx: Context) -> Iterator[str]:
-    """ List all available functions"""
-
+def list_functions(ctx: Context) -> list[str]:
+    """List API names of all available functions."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id: str = ctx.request_context.lifespan_context.ontology_id
 
-    return [ontologyType for ontologyType in foundry_client.ontologies.Ontology.QueryType.list(ontology_id)]
+    return [
+        query_type.api_name
+        for query_type in foundry_client.ontologies.Ontology.QueryType.list(ontology_id)
+    ]
 
 
 @mcp.tool()
 def execute_function(query_api_name: str, parameters: dict, ctx: Context):
-    """ Execute a function using given parameters """
-
+    """Execute a function using given parameters."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id: str = ctx.request_context.lifespan_context.ontology_id
 
@@ -155,6 +151,7 @@ def execute_function(query_api_name: str, parameters: dict, ctx: Context):
 
 def main():
     mcp.run()
+
 
 if __name__ == "__main__":
     main()
