@@ -25,16 +25,16 @@ It allows AI assistants to interact with datasets, ontology objects and function
 
 The server requires few configuration variables to run:
 
-| Variable         | Description                                                          | Default     |
-|------------------|----------------------------------------------------------------------|-------------|
-| `HOSTNAME`       | Your hostname of your Foundry instance                               | *required*  |
-| `TOKEN`          | A user token that you can generate in your profile page              | *required** |
-| `CLIENT_ID`      | A service user that is created in developer console                  | *required** |
-| `CLIENT_SECRET`  | A secret associated with the service user                            | *required** |
-| `SCOPES`         | Oauth scopes                                                         | None        |
-| `ONTOLOGY_ID`    | Your ontology id                                                     | *required*  |
+| Variable            | Description                                             | Requirement                    |
+|---------------------|---------------------------------------------------------|--------------------------------|
+| `FOUNDRY_HOSTNAME` | Hostname of your Foundry instance                       | Required                       |
+| `TOKEN`            | User token generated from your profile                  | Use this or client credentials |
+| `CLIENT_ID`        | Service user created in the developer console           | Required if TOKEN is unset     |
+| `CLIENT_SECRET`    | Secret associated with the service user                 | Required if TOKEN is unset     |
+| `SCOPES`           | OAuth scopes                                             | Optional                       |
+| `ONTOLOGY_ID`      | Your ontology ID                                         | Required                       |
 
-* if token is not provided the server will try to authenticate using the oauth2 flow with client_id and client_secret
+* Set `TOKEN`, or set both `CLIENT_ID` and `CLIENT_SECRET` for OAuth client authentication. When `TOKEN` is set, it takes precedence.
 
 ## Usage
 
@@ -54,7 +54,7 @@ first you need to clone the repository and add the config to your app
         "mcp-server-foundry"
       ],
       "env": {
-        "HOSTNAME": "<hostname>",
+        "FOUNDRY_HOSTNAME": "<hostname>",
         "TOKEN": "<token>",
         "CLIENT_ID": "<client_id>",
         "CLIENT_SECRET": "<client_secret>",
