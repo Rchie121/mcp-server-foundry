@@ -7,7 +7,7 @@ from foundry._errors import NotFoundError
 from dataclasses import dataclass
 from pydantic import Field
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.fastmcp.exceptions import ToolError
 from typing import Any
@@ -18,52 +18,89 @@ class AppContext:
     foundry_client: FoundryClient
     ontology_id: str
 
-@dataclass
-class ObjectType:
-    name: str
-    description: str
-    properties: list[str]
-    primary_key: str
-
 
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
 
-    token = os.environ.get("TOKEN")
+    hostname = os.environ.get("FOUNDRY_HOSTNAME", "")
+    ontology_id = os.environ.get("ONTOLOGY_ID", "")
+    token = os.environ.get("TOKEN", "")
+    client_id = os.environ.get("CLIENT_ID", "")
+    client_secret = os.environ.get("CLIENT_SECRET", "")
 
-    if token:
+    missing_required = [
+        name
+        for name, value in (
+            ("FOUNDRY_HOSTNAME", hostname),
+            ("ONTOLOGY_ID", ontology_id),
+        )
+        if not value.strip()
+    ]
+    has_token = bool(token.strip())
+    has_client_credentials = bool(client_id.strip() and client_secret.strip())
+
+    errors = []
+    if missing_required:
+        errors.append(
+            "Missing required Foundry configuration value(s): "
+            + ", ".join(missing_required)
+            + "."
+        )
+    if not has_token and not has_client_credentials:
+        missing_auth_values = [
+            name
+            for name, value in (
+                ("TOKEN", token),
+                ("CLIENT_ID", client_id),
+                ("CLIENT_SECRET", client_secret),
+            )
+            if not value.strip()
+        ]
+        errors.append(
+            "Foundry authentication is not configured. Set TOKEN, or set both "
+            "CLIENT_ID and CLIENT_SECRET. Missing values: "
+            + ", ".join(missing_auth_values)
+            + "."
+        )
+    if errors:
+        raise ValueError(" ".join(errors))
+
+    if has_token:
         auth = UserTokenAuth(token=token)
     else:
         auth = ConfidentialClientAuth(
-            client_id=os.environ["CLIENT_ID"],
-            client_secret=os.environ["CLIENT_SECRET"],
+            client_id=client_id,
+            client_secret=client_secret,
             scopes=os.environ.get("SCOPES")
         )
 
-    foundry_client = FoundryClient(auth=auth, hostname=os.environ["HOSTNAME"])
+    foundry_client = FoundryClient(auth=auth, hostname=hostname)
 
     yield AppContext(
         foundry_client=foundry_client,
-        ontology_id=os.environ["ONTOLOGY_ID"]
+        ontology_id=ontology_id
     )
+
 
 mcp = FastMCP("My App", lifespan=app_lifespan, dependencies=["foundry-platform-sdk"])
 
+
 @mcp.tool()
-def list_ontology_types(ctx: Context) -> Iterator[str]:
-    """ List all the ontology types """
+def list_ontology_types(ctx: Context) -> list[dict[str, object]]:
+    """List all ontology types, including their properties and primary key."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id = ctx.request_context.lifespan_context.ontology_id
 
     return [
-        ObjectType(
-            name=object_type.api_name,
-            description=object_type.description,
-            properties=list(object_type.properties.keys()),
-            primary_key=object_type.primary_key
-        )
-    for object_type in foundry_client.ontologies.Ontology.ObjectType.list(ontology_id)]
+        {
+            "name": object_type.api_name,
+            "description": object_type.description,
+            "properties": list(object_type.properties.keys()),
+            "primary_key": object_type.primary_key,
+        }
+        for object_type in foundry_client.ontologies.Ontology.ObjectType.list(ontology_id)
+    ]
 
 
 @mcp.tool()
@@ -72,8 +109,8 @@ def query_ontology_type(
     where: dict[str, Any] = Field(description="Filter conditions"),
     object_type: str = Field(description="Name of a ontology type (e.g. User, Article, etc.)")
 ) -> dict:
-    """ Query for objects in a given ontology type.
-        Use list_ontology_types to get the list of available types
+    """Query for objects in a given ontology type.
+    Use list_ontology_types to get the list of available types.
     """
 
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
@@ -107,7 +144,7 @@ def query_ontology_type(
 
 @mcp.tool()
 def query_dataset(ctx: Context, query: str) -> dict:
-    """ Query a dataset using Spark SQL dialect e.g. "SELECT COUNT(*) FROM `dataset_rid`" """
+    """Query a dataset using Spark SQL dialect e.g. "SELECT COUNT(*) FROM `dataset_rid`" """
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     query_id = foundry_client.sql_queries.Query.execute(
         query=query,
@@ -129,19 +166,20 @@ def query_dataset(ctx: Context, query: str) -> dict:
 
 
 @mcp.tool()
-def list_functions(ctx: Context) -> Iterator[str]:
-    """ List all available functions"""
-
+def list_functions(ctx: Context) -> list[str]:
+    """List API names of all available functions."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id: str = ctx.request_context.lifespan_context.ontology_id
 
-    return [ontologyType for ontologyType in foundry_client.ontologies.Ontology.QueryType.list(ontology_id)]
+    return [
+        query_type.api_name
+        for query_type in foundry_client.ontologies.Ontology.QueryType.list(ontology_id)
+    ]
 
 
 @mcp.tool()
 def execute_function(query_api_name: str, parameters: dict, ctx: Context):
-    """ Execute a function using given parameters """
-
+    """Execute a function using given parameters."""
     foundry_client: FoundryClient = ctx.request_context.lifespan_context.foundry_client
     ontology_id: str = ctx.request_context.lifespan_context.ontology_id
 
@@ -155,6 +193,7 @@ def execute_function(query_api_name: str, parameters: dict, ctx: Context):
 
 def main():
     mcp.run()
+
 
 if __name__ == "__main__":
     main()
